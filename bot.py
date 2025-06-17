@@ -10,7 +10,7 @@ import os
 import asyncio
 import re
 
-BOT_TOKEN = "7685989970:AAGsSchtYWmvBcqBoKCbm8YWDI0PGfEa_tU"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = 7740582763
 
 keyboard = [
