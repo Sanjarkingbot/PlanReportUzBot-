@@ -134,15 +134,8 @@ async def main():
     scheduler.add_job(lambda: asyncio.run(send_report_reminder(app.bot)), trigger="cron", hour=17, minute=0)
     scheduler.start()
 
-    await app.initialize()
-    await app.start()
-    await app.bot.set_webhook("https://planreportuzbot.onrender.com/webhook")
-    await app.updater.start_webhook(
-        listen="0.0.0.0",
-        port=int(os.getenv("PORT", "10000")),
-        url_path="webhook",
-        webhook_url="https://planreportuzbot.onrender.com/webhook"
-    )
+    print("✅ Бот запущен и работает через long polling")
+    await app.run_polling()
 
 if __name__ == "__main__":
     asyncio.run(main())
