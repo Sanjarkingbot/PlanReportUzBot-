@@ -1,0 +1,20 @@
+﻿# Игнорировать временные Excel-отчёты
+*.xlsx
+
+# Python кэш и временные файлы
+__pycache__/
+*.py[cod]
+
+# Логи
+*.log
+
+# IDE/редактор мусор
+.vscode/
+.idea/
+
+# Переменные окружения, если будут
+.env
+
+# Служебные файлы Windows/macOS
+Thumbs.db
+.DS_Store
