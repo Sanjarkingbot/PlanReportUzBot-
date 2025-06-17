@@ -3,16 +3,18 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     ContextTypes, filters, ConversationHandler
 )
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from openpyxl import Workbook, load_workbook
 from datetime import datetime
 import os
 import asyncio
 import re
 
+# --- Переменные окружения ---
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID"))
 
+# --- Клавиатура ---
 keyboard = [
     [KeyboardButton("🗓 План на сегодня"), KeyboardButton("📝 Отправить отчёт")],
     [KeyboardButton("🗕 Отчёты по дате"), KeyboardButton("🔍 Поиск по сотруднику")],
@@ -23,6 +25,7 @@ reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 TYPING_PLAN = 1
 user_states = {}
 
+# --- Excel файл ---
 def get_excel():
     file_name = "reports.xlsx"
     if not os.path.exists(file_name):
@@ -32,16 +35,24 @@ def get_excel():
         wb.save(file_name)
     return file_name
 
+# --- Команды ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 Добро пожаловать! Используйте кнопки или команды.", reply_markup=reply_markup)
+
+async def template(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Добро пожаловать! Используйте кнопки или команды.",
-        reply_markup=reply_markup
+        "📂 Шаблон отчёта:\n\n"
+        "1. Задача\n"
+        "— Комментарий\n\n"
+        "2. Задача\n"
+        "— Комментарий"
     )
 
 async def plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     user_states[user_id] = "ПЛАН"
-    await update.message.reply_text("✏️ Введите свой ПЛАН на сегодня в следующем формате:\n\n"
+    await update.message.reply_text(
+        "✏️ Введите свой ПЛАН на сегодня в следующем формате:\n\n"
         "📄 Шаблон плана на 2025-06-17:\n\n"
         "1. Задача\n"
         "— Что нужно сделать\n\n"
@@ -51,16 +62,17 @@ async def plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "1. Встреча с подрядчиком\n"
         "— Обсудить этапы установки оборудования\n\n"
         "2. Подготовка документов\n"
-        "— Завершить пакет для поставщика")
+        "— Завершить пакет для поставщика"
+    )
     return TYPING_PLAN
 
-async def template(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    user_states[user_id] = "ОТЧЁТ"
     await update.message.reply_text(
-        "📂 Шаблон отчёта:\n\n"
-        "1. Задача\n"
-        "— Комментарий\n\n"
-        "2. Задача\n"
-        "— Комментарий")
+        "✏️ Введите свой ОТЧЁТ в виде текста, как в шаблоне. Если допустили ошибку — просто отправьте новый отчёт с пометкой ‘исправление’."
+    )
+    return TYPING_PLAN
 
 async def save_entry(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
@@ -93,12 +105,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Операция отменена.")
     return ConversationHandler.END
 
-async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
-    user_states[user_id] = "ОТЧЁТ"
-    await update.message.reply_text("✏️ Введите свой ОТЧЁТ в виде текста, как в шаблоне. Если допустили ошибку — просто отправьте новый отчёт с пометкой ‘исправление’.")
-    return TYPING_PLAN
-
+# --- Напоминания ---
 async def send_daily_plan(context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=CHAT_ID, text=
         "📌 План на сегодня:\n"
@@ -106,22 +113,26 @@ async def send_daily_plan(context: ContextTypes.DEFAULT_TYPE):
         "2. Работы на площадке\n"
         "3. Согласование с поставщиками\n"
         "4. Документооборот\n"
-        "5. Отправка отчёта вечером")
+        "5. Отправка отчёта вечером"
+    )
 
 async def send_report_reminder(context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=CHAT_ID, text="⏰ Напоминание: не забудьте отправить отчёт до 18:00!")
 
+# --- Старт приложения ---
+async def on_startup(app):
+    print("✅ Бот запущен и готов к работе")
+
 async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
+    # Обработчики
     conv_handler = ConversationHandler(
         entry_points=[
             MessageHandler(filters.Regex("^🗓 План на сегодня$"), plan),
             MessageHandler(filters.Regex("^📝 Отправить отчёт$"), report)
         ],
-        states={
-            TYPING_PLAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_entry)]
-        },
+        states={TYPING_PLAN: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_entry)]},
         fallbacks=[CommandHandler("cancel", cancel)]
     )
 
@@ -129,10 +140,23 @@ async def main():
     app.add_handler(CommandHandler("template", template))
     app.add_handler(conv_handler)
 
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(lambda: asyncio.run(send_daily_plan(app.bot)), trigger="cron", hour=7, minute=50)
-    scheduler.add_job(lambda: asyncio.run(send_report_reminder(app.bot)), trigger="cron", hour=17, minute=0)
+    # Планировщик задач
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(send_daily_plan, "cron", hour=7, minute=50, args=[app])
+    scheduler.add_job(send_report_reminder, "cron", hour=17, minute=0, args=[app])
     scheduler.start()
 
-    print("✅ Бот запущен и работает через long polling")
-    await app.run_polling()
+    # Webhook
+    await app.initialize()
+    await app.bot.set_webhook("https://planreportuzbot.onrender.com/webhook")
+    await app.start()
+    await app.updater.start_webhook(
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", "10000")),
+        url_path="webhook",
+        webhook_url="https://planreportuzbot.onrender.com/webhook",
+        on_startup=[on_startup]
+    )
+
+if __name__ == "__main__":
+    asyncio.run(main())
