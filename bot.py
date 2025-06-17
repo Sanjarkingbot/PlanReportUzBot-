@@ -151,12 +151,12 @@ async def main():
     await app.bot.set_webhook("https://planreportuzbot.onrender.com/webhook")
     await app.start()
     await app.updater.start_webhook(
-        listen="0.0.0.0",
-        port=int(os.getenv("PORT", "10000")),
-        url_path="webhook",
-        webhook_url="https://planreportuzbot.onrender.com/webhook",
-        on_startup=[on_startup]
-    )
+    listen="0.0.0.0",
+    port=int(os.getenv("PORT", "10000")),
+    url_path="webhook",
+    webhook_url="https://planreportuzbot.onrender.com/webhook"
+)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
