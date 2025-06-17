@@ -136,6 +136,3 @@ async def main():
 
     print("✅ Бот запущен и работает через long polling")
     await app.run_polling()
-
-if __name__ == "__main__":
-    asyncio.run(main())
