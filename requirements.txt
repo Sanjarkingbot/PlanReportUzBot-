@@ -1,4 +1,7 @@
-python-telegram-bot>=20.0
+python-telegram-bot[webhooks]==20.0
 openpyxl
 apscheduler
-watchdog
+httpx
+certifi
+anyio
+tzlocal
