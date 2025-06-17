@@ -11,7 +11,7 @@ import asyncio
 import re
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = 7740582763
+CHAT_ID = int(os.getenv("CHAT_ID"))
 
 keyboard = [
     [KeyboardButton("🗓 План на сегодня"), KeyboardButton("📝 Отправить отчёт")],
