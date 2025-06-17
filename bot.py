@@ -21,7 +21,6 @@ keyboard = [
 reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 TYPING_PLAN = 1
-
 user_states = {}
 
 def get_excel():
@@ -112,7 +111,7 @@ async def send_daily_plan(context: ContextTypes.DEFAULT_TYPE):
 async def send_report_reminder(context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=CHAT_ID, text="⏰ Напоминание: не забудьте отправить отчёт до 18:00!")
 
-def main():
+async def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     conv_handler = ConversationHandler(
@@ -135,8 +134,15 @@ def main():
     scheduler.add_job(lambda: asyncio.run(send_report_reminder(app.bot)), trigger="cron", hour=17, minute=0)
     scheduler.start()
 
-    print("✅ Бот запущен и готов к работе")
-    app.run_polling()
+    await app.initialize()
+    await app.start()
+    await app.bot.set_webhook("https://planreportuzbot.onrender.com/webhook")
+    await app.updater.start_webhook(
+        listen="0.0.0.0",
+        port=int(os.getenv("PORT", "10000")),
+        url_path="webhook",
+        webhook_url="https://planreportuzbot.onrender.com/webhook"
+    )
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
